@@ -1,48 +1,57 @@
-- Start Date: 2012-8-13
-- Relevant Team(s): Product Eng, Provisioning
-- RFC PR: 
-- Status: Initial Draft
+# Design for provisioning alternative nodes on failure
 
-# Improve provisioning success rate.
+- First Proposed:  2021-08-25
+- Authors:
+  - Raj Dharwadkar
+- Relevant Team(s): Product Engineering, Provisioning
+- Status: [ Draft ]
 
 ## Summary
 
-Provisioning process takes longer time to fail because it get stuck at one of provisioning event. Example: provisioning stops at this event "Connected to magic install system" and provisioning fails only after 25 mins.
+Primary reasons for provisioning failures may be hardware, system, or service failure. Making provisioning workflow reliable, even in the face of an unreliable environment.
 
-## Motivation
+## Background
 
-To improve the provisioning success rate and performance with alternatives.
+The user sees more provisioning failures in unreliable environments. On any provisioning failure, there is no timeout associated with each provisioning event so the user has to wait 25 minutes to see provisioning failure.
 
-## Detailed design
+## Scope
 
-Following are two approaches:
+- Improve user provisioning success rate by providing provisioning retry on failure. 
+- Make the user's provisioning experience better and improve provisioning performance, by providing faster response time from each provisioning event.
 
-1. Check if all provisioning events has wait timeouts. Each event should wait for limited time to get success/failure response. If one of event fails then retry atleast two times before returning/exiting.
+### Goals
 
-Pros: 
-    - Failures are detected at earlier stage and user does not have to wait for 25 mins for initial errors. This improves provisioning performance.
-      
-Cons: 
-    - Not sure if provisioning events can handle timeouts.
-    - Time estimate to implement this approach is not known yet
+- Increase provisioning success rate.
+- Make provisioning performance better.
+- Changes in provisioning success rate and performance can be tracked in the grafana provisioning dashboard.
 
-## Alternatives
+### Non-Goals
 
-Provision two servers with same configuration at same time. If provisioning was success on two servers, deprovision any one of two servers. If one of servers fails to provision, deprovision failed server right away and continue with provisioned success server.
+- Handle repeated provisioning failure with the same configuration, if provisioning continues to fail on new hardware after switching then provisioning workflow does not continue with the next hardware.
 
-Instead of provisioning two servers at same time, We can start provisioning one server and if provisioning fails then we start provisioning new server with same configuration. In this case user is aware of failed server and starting new server but does not need user intervention for this process.
+### Detailed design
 
-Pros:
-    - Provisioning success rate is higher.
-    - Provisioning performance is better.
+Provisioning one server at a time, In case of provisioning failure, automatically switch to new hardware and start provisioning with the same configuration and deprovision failed server.
+We should note that users are aware of provisioning failure and switching to new hardware because they had access to the server IP and console at the initial phase of provisioning.
 
-Cons:
-    - Expect to have more hardwares in facility than required for provisioning.
-    - Currently during provisioning, user can see server IP address and server console at intial phase of provisioning. This can be confusing for user if provisioning failed and we switch to different server.
-    - To prevent more hardware usage, deprovision process need to be faster.
+Additional:
+To prevent users from waiting for 25 minutes on provisioning failure, check all provisioning events have a wait timeout associated with them so that the user sees failure early and quickly. To improve wait timeout, events should retry 2 or 3 times before returning/exiting.
+
+## Drawbacks
+
+- Additional hardware must be available in case of failure.
+- Provisioning may take a longer time on failure, as we switch to other hardware to retry provisioning.
+
+## Alternatives Considered
+
+To decrease provisioning time in the first approach, we can provision two servers at a time with the same configuration. On successful provisioning of any one of two servers, the failed server can be deprovisioned. Deprovision workflow should be modified to make it faster to prevent more hardware usage.
+
+## Drawbacks
+
+- Almost twice the number of hardware is required in the facilities, as we provision two servers at a time over a short period.
+- Provisioning failure may increase if there is a shortage of hardware in the facilities.
 
 ## Unresolved questions
 
-> Optional, but suggested for first drafts.
-> What parts of the design are still TBD?
-
+> This section is optional but recommended for first drafts.
+> What parts of this design have not yet been finalized?
